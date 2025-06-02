@@ -1,0 +1,3 @@
+based on this architecture generate the full aws cloudformation structure to support the lambda being a standalone python app script that will call anthropic bedrock, with empty script and other support files, ensuring we use environment variables for REGION, key and secret not cli config
+
+
