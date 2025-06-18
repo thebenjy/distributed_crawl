@@ -1,0 +1,34 @@
+2025-06-12 15:52:08,130 - INFO - Found credentials in environment variables.
+2025-06-12 15:52:08,431 - INFO - AWS clients initialized
+2025-06-12 15:52:09,518 - INFO - Created S3 bucket: web-crawler-results-hybrid
+2025-06-12 15:52:09,518 - INFO - Starting crawl of 7 URLs with 3 workers
+2025-06-12 15:52:09,519 - INFO - Attempting local crawl: http://localhost:8001/
+2025-06-12 15:52:09,604 - INFO - Attempting local crawl: http://localhost:8001/about
+2025-06-12 15:52:09,670 - INFO - Attempting local crawl: http://localhost:8001/services
+2025-06-12 15:52:21,933 - INFO - Local crawl successful: http://localhost:8001/services
+2025-06-12 15:52:21,933 - INFO - Analyzing content for: http://localhost:8001/services
+2025-06-12 15:52:21,935 - INFO - Attempting local crawl: http://localhost:8001/contact
+2025-06-12 15:52:22,066 - INFO - Local crawl successful: http://localhost:8001/about
+2025-06-12 15:52:22,067 - INFO - Analyzing content for: http://localhost:8001/about
+2025-06-12 15:52:22,068 - INFO - Attempting local crawl: http://localhost:8002/
+2025-06-12 15:52:24,117 - INFO - Geo-blocking detected, trying Lambda fallback: http://localhost:8001/
+2025-06-12 15:52:24,897 - ERROR - Lambda fallback failed for http://localhost:8001/: An error occurred (ResourceNotFoundException) when calling the Invoke operation: Function not found: arn:aws:lambda:us-east-1:637423269557:function:web-crawler-analyzer
+2025-06-12 15:52:24,897 - WARNING - Lambda fallback failed: An error occurred (ResourceNotFoundException) when calling the Invoke operation: Function not found: arn:aws:lambda:us-east-1:637423269557:function:web-crawler-analyzer
+2025-06-12 15:52:24,898 - INFO - Analyzing content for: http://localhost:8001/
+2025-06-12 15:52:24,899 - INFO - Attempting local crawl: http://localhost:8002/about
+2025-06-12 15:52:25,809 - INFO - Local crawl successful: http://localhost:8001/contact
+2025-06-12 15:52:25,810 - INFO - Analyzing content for: http://localhost:8001/contact
+2025-06-12 15:52:25,813 - INFO - Attempting local crawl: http://localhost:8002/premium
+2025-06-12 15:52:25,925 - INFO - Geo-blocking detected, trying Lambda fallback: http://localhost:8002/
+2025-06-12 15:52:26,188 - ERROR - Lambda fallback failed for http://localhost:8002/: An error occurred (ResourceNotFoundException) when calling the Invoke operation: Function not found: arn:aws:lambda:us-east-1:637423269557:function:web-crawler-analyzer
+2025-06-12 15:52:26,189 - WARNING - Lambda fallback failed: An error occurred (ResourceNotFoundException) when calling the Invoke operation: Function not found: arn:aws:lambda:us-east-1:637423269557:function:web-crawler-analyzer
+2025-06-12 15:52:26,189 - INFO - Analyzing content for: http://localhost:8002/
+2025-06-12 15:52:27,830 - INFO - Geo-blocking detected, trying Lambda fallback: http://localhost:8002/about
+2025-06-12 15:52:28,064 - ERROR - Lambda fallback failed for http://localhost:8002/about: An error occurred (ResourceNotFoundException) when calling the Invoke operation: Function not found: arn:aws:lambda:us-east-1:637423269557:function:web-crawler-analyzer
+2025-06-12 15:52:28,064 - WARNING - Lambda fallback failed: An error occurred (ResourceNotFoundException) when calling the Invoke operation: Function not found: arn:aws:lambda:us-east-1:637423269557:function:web-crawler-analyzer
+2025-06-12 15:52:28,065 - INFO - Analyzing content for: http://localhost:8002/about
+2025-06-12 15:52:28,730 - INFO - Geo-blocking detected, trying Lambda fallback: http://localhost:8002/premium
+2025-06-12 15:52:28,963 - ERROR - Lambda fallback failed for http://localhost:8002/premium: An error occurred (ResourceNotFoundException) when calling the Invoke operation: Function not found: arn:aws:lambda:us-east-1:637423269557:function:web-crawler-analyzer
+2025-06-12 15:52:28,963 - WARNING - Lambda fallback failed: An error occurred (ResourceNotFoundException) when calling the Invoke operation: Function not found: arn:aws:lambda:us-east-1:637423269557:function:web-crawler-analyzer
+2025-06-12 15:52:28,963 - INFO - Analyzing content for: http://localhost:8002/premium
+2025-06-12 15:52:28,965 - INFO - Summary saved to: crawl_output/results/crawl_summary_1749707548.json

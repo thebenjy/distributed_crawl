@@ -1,0 +1,64 @@
+{
+  "crawler_config.json": {
+    "max_levels": 2,
+    "max_concurrency": 8,
+    "retry_attempts": 3,
+    "timeout": 900,
+    "rate_limit_delay": 1.0,
+    "debug_mode": false,
+    "debug_max_sublinks": 5,
+    "debug_max_urls": 10,
+    "lambda_function_name": "web-crawler-analyzer",
+    "s3_bucket": "web-crawler-results",
+    "aws_region": "us-east-1",
+    "analyze_content": true,
+    "extract_links": true,
+    "ai_provider": "deepseek",
+    "deepseek_config": {
+      "model": "deepseek-reasoner",
+      "max_tokens": 1500,
+      "temperature": 0.1,
+      "timeout": 30
+    },
+    "crawl4ai_config": {
+      "word_count_threshold": 10,
+      "process_iframes": true,
+      "remove_overlay_elements": true,
+      "simulate_user": true,
+      "delay_before_return_html": 2.0,
+      "wait_for_selector": null,
+      "screenshot": false
+    }
+  },
+  
+  "sample_urls.txt": [
+    "https://example.com",
+    "https://docs.python.org/3/",
+    "https://aws.amazon.com/lambda/",
+    "https://github.com/unclecode/crawl4ai",
+    "https://anthropic.com"
+  ],
+  
+  "debug_config.json": {
+    "max_levels": 1,
+    "max_concurrency": 2,
+    "retry_attempts": 2,
+    "timeout": 300,
+    "rate_limit_delay": 2.0,
+    "debug_mode": true,
+    "debug_max_sublinks": 3,
+    "debug_max_urls": 5,
+    "lambda_function_name": "web-crawler-analyzer",
+    "s3_bucket": "web-crawler-results",
+    "aws_region": "us-east-1",
+    "analyze_content": true,
+    "extract_links": true,
+    "ai_provider": "deepseek",
+    "deepseek_config": {
+      "model": "deepseek-reasoner",
+      "max_tokens": 1000,
+      "temperature": 0.2,
+      "timeout": 20
+    }
+  }
+}

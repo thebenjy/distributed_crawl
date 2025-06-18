@@ -31,7 +31,7 @@ cd web-crawler
 echo "📦 Installing dependencies..."
 pip install --upgrade pip
 
-cp ../requirements.txt  ./
+cp ../requirements.txt ./
 # cat > requirements.txt << EOF
 # boto3>=1.26.0
 # botocore>=1.29.0
@@ -132,13 +132,18 @@ echo ""
 echo "🔑 To configure AWS credentials, run:"
 echo "   aws configure"
 echo ""
+echo "🤖 DeepSeek API Setup:"
+echo "   Set your DeepSeek API key as an environment variable:"
+echo "   export DEEPSEEK_API_KEY=your_deepseek_api_key_here"
+echo "   Or add it to your ~/.bashrc or ~/.zshrc file"
+echo ""
 echo "📝 Required AWS permissions:"
 echo "   - Lambda: CreateFunction, UpdateFunctionCode, InvokeFunction"
 echo "   - S3: CreateBucket, PutObject, GetObject"
-echo "   - Bedrock: InvokeModel"
 echo "   - IAM: CreateRole, AttachRolePolicy"
 echo ""
 echo "🏗️ To deploy the Lambda function, run:"
+echo "   export DEEPSEEK_API_KEY=your_api_key"
 echo "   python src/lambda_deployment.py"
 EOF
 
@@ -245,9 +250,9 @@ A scalable web crawler that uses AWS Lambda for distributed processing and Crawl
 ## Quick Start
 
 1. **Setup environment:**
-   # \`\`\`bash
-   # source venv/bin/activate
-   # \`\`\`
+   \`\`\`bash
+   source venv/bin/activate
+   \`\`\`
 
 2. **Configure AWS:**
    \`\`\`bash
@@ -307,7 +312,7 @@ echo ""
 echo "✅ Setup completed successfully!"
 echo ""
 echo "📋 Next steps:"
-# echo "1. Activate virtual environment: source venv/bin/activate"
+echo "1. Activate virtual environment: source venv/bin/activate"
 echo "2. Configure AWS credentials: ./config/aws_setup.sh"
 echo "3. Deploy Lambda function: python deploy_lambda.py"
 echo "4. Test the crawler: python test_crawler.py"
