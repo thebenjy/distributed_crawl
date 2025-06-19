@@ -1,0 +1,33 @@
+{
+  "url": "https://www.wm.com/us/en/location/az/phoenix/trash-pickup-phoenix-az?utm_source=gmb",
+  "md_hash": "cabde90fbd126597",
+  "page_slug": "wm_com_trash-pickup-phoenix-az",
+  "filename": "3b1369df95f4_cabde90fbd126597_wm_com_trash-pickup-phoenix-az",
+  "crawled_at": "2025-06-19T15:46:28.080318",
+  "method": "crawl4ai_local",
+  "content_length": 781,
+  "extracted_links": [],
+  "analysis": {},
+  "s3_key": null,
+  "markdown_file": "markdown/3b1369df95f4_cabde90fbd126597_wm_com_trash-pickup-phoenix-az.md",
+  "unique_id": "3b1369df95f4",
+  "csv_data": {
+    "\ufeffname": "WM - Deer Valley Transfer Station",
+    "site": "https://www.wm.com/us/en/location/az/phoenix/trash-pickup-phoenix-az?utm_source=gmb",
+    "phone": "+1 623-869-6799",
+    "borough": "",
+    "street": "",
+    "city": "",
+    "postal_code": "",
+    "state": "",
+    "latitude": "33.2766146",
+    "longitude": "-112.18749",
+    "rating": "3.6",
+    "reviews": "48",
+    "reviews_link": "https://search.google.com/local/reviews?placeid=ChIJFb8YmXxvK4cRFcIKf5Z-DLM&q=rubbish+dump,+85022,+Phoenix,+AZ,+US&authuser=0&hl=en&gl=US",
+    "photo": "https://lh3.googleusercontent.com/p/AF1QipOOurXM4uIO5d_v7CzQ0RIogJhsnxgZJIL88HT5=w800-h500-k-no",
+    "working_hours": "{\"Monday\": \"7:30AM-4PM\", \"Tuesday\": \"7:30AM-4PM\", \"Wednesday\": \"7:30AM-4PM\", \"Thursday\": \"7:30AM-4PM\", \"Friday\": \"7:30AM-4PM\", \"Saturday\": \"7AM-1PM\", \"Sunday\": \"Closed\"}",
+    "business_status": "OPERATIONAL",
+    "location_link": "https://www.google.com/maps/place/WM+-+Deer+Valley+Transfer+Station/@33.2766146,-112.18749,14z/data=!4m8!1m2!2m1!1sWM+-+Deer+Valley+Transfer+Station!3m4!1s0x872b6f7c9918bf15:0xb30c7e967f0ac215!8m2!3d33.2766146!4d-112.18749"
+  }
+}

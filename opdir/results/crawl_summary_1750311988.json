@@ -1,0 +1,38 @@
+{
+  "crawl_session": {
+    "start_time": "2025-06-19T15:45:20.873094",
+    "end_time": "2025-06-19T15:46:28.081783",
+    "duration_seconds": 67.208689,
+    "total_urls": 1,
+    "local_success": 1,
+    "lambda_fallback": 0,
+    "geo_blocked_skipped": 0,
+    "failures": 0,
+    "success_rate": 100.0,
+    "lambda_disabled": true,
+    "error_urls_count": 0
+  },
+  "results": {
+    "https://www.wm.com/us/en/location/az/phoenix/trash-pickup-phoenix-az?utm_source=gmb": {
+      "url": "https://www.wm.com/us/en/location/az/phoenix/trash-pickup-phoenix-az?utm_source=gmb",
+      "status": "success",
+      "md_hash": "cabde90fbd126597",
+      "method": "crawl4ai_local",
+      "processing_time": 67.20742607116699,
+      "content_length": 781,
+      "links_extracted": 0,
+      "analysis_summary": "No analysis"
+    }
+  },
+  "config": {
+    "max_workers": 1,
+    "output_dir": "opdir",
+    "s3_bucket": "web-crawler-results-hybrid",
+    "lambda_function_name": "web-crawler-analyzer",
+    "aws_region": "us-east-1",
+    "analyze_content": false,
+    "extract_links": true,
+    "disable_lambda": true,
+    "timeout": 300
+  }
+}

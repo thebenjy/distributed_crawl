@@ -1,0 +1,2 @@
+# engineering notes
+python3 hybrid_crawler.py --csv-import test_dump_list.csv --disable-lambda --no-analysis --workers 1 --output-dir opdir

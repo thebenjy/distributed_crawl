@@ -5,16 +5,17 @@ Performs multi-threaded local crawling with automatic Lambda fallback for geo-bl
 Enhanced with descriptive filename generation including domain and page slugs
 """
 
-import os
+import os,sys
 import json
 import time
 import hashlib
 import logging
 import asyncio
 import threading
+import csv
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urlparse
 import argparse
@@ -72,8 +73,17 @@ class HybridWebCrawler:
             'local_success': 0,
             'lambda_fallback': 0,
             'failures': 0,
+            'geo_blocked_skipped': 0,
             'start_time': None
         }
+        
+        # Error URL tracking
+        self.error_urls = []
+        self.error_urls_file = self.output_dir / 'error_urls.txt'
+        
+        # CSV data tracking
+        self.csv_data = {}  # Store CSV row data by URL
+        self.url_to_unique_id = {}  # Map URLs to unique IDs
         
     def setup_aws_clients(self):
         """Initialize AWS clients"""
@@ -170,6 +180,135 @@ class HybridWebCrawler:
         slug = slug.strip('_')
         
         return slug
+    
+    def generate_unique_id(self, lat: str, long: str, hash_length: int = 12) -> str:
+        """Generate a unique alphanumeric ID from lat/long coordinates.
+        
+        Args:
+            lat: Latitude.
+            long: Longitude.
+            hash_length: Length of the hash to generate.
+            
+        Returns:
+            str: Unique hash ID.
+        """
+        slat = f"{lat}".strip()
+        slong = f"{long}".strip()
+        idata = f"{slat}{slong}"
+        data = idata.encode('utf-8')
+        hex_hash = hashlib.sha1(data).hexdigest()
+        hash_id = hex_hash[:hash_length]
+        logger.debug(f'Generated hash for {idata}: {hash_id}')
+        return hash_id
+    
+    def load_csv_data(self, csv_file: str) -> List[str]:
+        """Load URLs and metadata from CSV file"""
+        urls = []
+        
+        try:
+            with open(csv_file, 'r', encoding='utf-8') as f:
+                # Detect dialect
+                sample = f.read(1024)
+                f.seek(0)
+                sniffer = csv.Sniffer()
+                delimiter = sniffer.sniff(sample).delimiter
+                
+                reader = csv.DictReader(f, delimiter=delimiter)
+                
+                # Clean header names (strip whitespace)
+                fieldnames = [field.strip() for field in reader.fieldnames]
+                
+                # Check for required columns
+                site_column = None
+                lat_column = None
+                long_column = None
+                unique_id_column = None
+                
+                # Find columns (case-insensitive)
+                for field in fieldnames:
+                    field_lower = field.lower()
+                    if field_lower in ['site', 'url', 'website']:
+                        site_column = field
+                    elif field_lower in ['lat', 'latitude']:
+                        lat_column = field
+                    elif field_lower in ['long', 'lng', 'longitude']:
+                        long_column = field
+                    elif field_lower in ['uniqueid', 'unique_id', 'id']:
+                        unique_id_column = field
+                
+                if not site_column:
+                    raise ValueError("CSV must contain a 'site' or 'url' column")
+                
+                logger.info(f"CSV columns detected:")
+                logger.info(f"  Site: {site_column}")
+                logger.info(f"  Latitude: {lat_column}")
+                logger.info(f"  Longitude: {long_column}")
+                logger.info(f"  Unique ID: {unique_id_column}")
+                
+                # Process rows
+                for row_num, row in enumerate(reader, start=2):
+                    # Clean row data
+                    clean_row = {k.strip(): v.strip() if v else '' for k, v in row.items()}
+                    
+                    url = clean_row.get(site_column, '').strip()
+                    if not url:
+                        logger.warning(f"Row {row_num}: Empty URL, skipping")
+                        continue
+                    
+                    # Ensure URL has protocol
+                    if not url.startswith(('http://', 'https://')):
+                        url = 'https://' + url
+                    
+                    # Get or generate unique ID
+                    unique_id = clean_row.get(unique_id_column, '').strip() if unique_id_column else ''
+                    
+                    if not unique_id and lat_column and long_column:
+                        lat = clean_row.get(lat_column, '').strip()
+                        long = clean_row.get(long_column, '').strip()
+                        
+                        if lat and long:
+                            unique_id = self.generate_unique_id(lat, long)
+                            logger.info(f"Generated unique ID for {url}: {unique_id}")
+                        else:
+                            logger.warning(f"Row {row_num}: Missing lat/long for {url}, using URL hash")
+                            unique_id = hashlib.sha1(url.encode()).hexdigest()[:12]
+                    elif not unique_id:
+                        # Fallback: use URL hash
+                        unique_id = hashlib.sha1(url.encode()).hexdigest()[:12]
+                        logger.info(f"Generated URL-based unique ID for {url}: {unique_id}")
+                    
+                    # Store CSV data
+                    self.csv_data[url] = clean_row
+                    self.url_to_unique_id[url] = unique_id
+                    urls.append(url)
+                    
+                    logger.debug(f"Loaded: {url} -> {unique_id}")
+                
+                logger.info(f"Loaded {len(urls)} URLs from CSV file: {csv_file}")
+                
+        except Exception as e:
+            logger.error(f"Failed to load CSV file {csv_file}: {e}")
+            raise
+            
+        return urls
+        
+    def get_enhanced_filename(self, url: str, content: str) -> Tuple[str, str]:
+        """Generate enhanced filename with unique ID if available"""
+        # Generate basic components
+        md_hash = self.generate_content_hash(content)
+        page_slug = self.generate_page_slug(url)
+        
+        # Check if we have unique ID from CSV
+        unique_id = self.url_to_unique_id.get(url)
+        
+        if unique_id:
+            # Format: uniqueid_hash_pageslug
+            filename = f"{unique_id}_{md_hash}_{page_slug}"
+        else:
+            # Format: hash_pageslug (original format)
+            filename = f"{md_hash}_{page_slug}"
+            
+        return filename, md_hash
         
     def generate_content_hash(self, content: str) -> str:
         """Generate SHA-256 hash of content"""
@@ -266,10 +405,14 @@ class HybridWebCrawler:
             raise
             
     def crawl_lambda_fallback(self, url: str) -> Dict:
-        """Fallback to Lambda for geo-blocked content"""
+        """Fallback to Lambda for geo-blocked content (supports local SAM)"""
         if not self.lambda_client:
             raise Exception("Lambda client not available")
-            
+        
+        # Check if we're using SAM local
+        sam_local_endpoint = os.environ.get('SAM_LOCAL_LAMBDA_ENDPOINT', 'http://localhost:3001')
+        use_sam_local = os.environ.get('USE_SAM_LOCAL', 'false').lower() == 'true'
+        
         payload = {
             "url": url,
             "config": {
@@ -282,20 +425,40 @@ class HybridWebCrawler:
         }
         
         try:
-            response = self.lambda_client.invoke(
-                FunctionName=self.config.get('lambda_function_name', 'web-crawler-analyzer'),
-                InvocationType='RequestResponse',
-                Payload=json.dumps(payload)
-            )
+            if use_sam_local:
+                # Use SAM local Lambda endpoint
+                logger.info(f"Using SAM local Lambda at {sam_local_endpoint}")
+                
+                # Create local Lambda client
+                local_lambda_client = boto3.client(
+                    'lambda',
+                    endpoint_url=sam_local_endpoint,
+                    region_name='us-east-1',
+                    aws_access_key_id='dummy',
+                    aws_secret_access_key='dummy'
+                )
+                
+                response = local_lambda_client.invoke(
+                    FunctionName='WebCrawlerFunction',
+                    InvocationType='RequestResponse',
+                    Payload=json.dumps(payload)
+                )
+            else:
+                # Use deployed Lambda function
+                response = self.lambda_client.invoke(
+                    FunctionName=self.config.get('lambda_function_name', 'web-crawler-analyzer'),
+                    InvocationType='RequestResponse',
+                    Payload=json.dumps(payload)
+                )
             
             response_payload = json.loads(response['Payload'].read())
             
             if response['StatusCode'] == 200 and response_payload.get('statusCode') == 200:
                 body = response_payload.get('body', {})
                 
-                # Download markdown from S3 if available
+                # Download markdown from S3 if available (skip for local testing)
                 markdown_content = ""
-                if body.get('s3_key') and self.s3_client:
+                if body.get('s3_key') and self.s3_client and not use_sam_local:
                     try:
                         s3_response = self.s3_client.get_object(
                             Bucket=self.config.get('s3_bucket'),
@@ -304,6 +467,9 @@ class HybridWebCrawler:
                         markdown_content = s3_response['Body'].read().decode('utf-8')
                     except Exception as e:
                         logger.warning(f"Failed to download from S3: {e}")
+                elif use_sam_local:
+                    # For SAM local, markdown content is returned directly
+                    markdown_content = body.get('markdown', '')
                         
                 return {
                     'url': url,
@@ -312,7 +478,7 @@ class HybridWebCrawler:
                     'analysis': body.get('analysis', {}),
                     'md_hash': body.get('md_hash'),
                     's3_key': body.get('s3_key'),
-                    'method': 'lambda_fallback'
+                    'method': 'lambda_fallback_sam_local' if use_sam_local else 'lambda_fallback'
                 }
             else:
                 raise Exception(f"Lambda invocation failed: {response_payload}")
@@ -368,24 +534,20 @@ class HybridWebCrawler:
             return {'error': str(e)}
             
     def save_local_result(self, url: str, result: Dict) -> str:
-        """Save crawling result locally with descriptive filenames"""
-        # Generate hash and page slug
-        md_hash = self.generate_content_hash(result['markdown'])
-        page_slug = self.generate_page_slug(url)
-        
-        # Create filename: hash_pageslug.md
-        filename = f"{md_hash}_{page_slug}"
-        markdown_file = self.markdown_dir / f"{filename}.md"
+        """Save crawling result locally with enhanced filenames"""
+        # Generate enhanced filename with unique ID if available
+        filename, md_hash = self.get_enhanced_filename(url, result['markdown'])
         
         # Save markdown file
+        markdown_file = self.markdown_dir / f"{filename}.md"
         with open(markdown_file, 'w', encoding='utf-8') as f:
             f.write(result['markdown'])
             
-        # Save metadata with descriptive filename
+        # Prepare metadata with CSV data if available
         metadata = {
             'url': url,
             'md_hash': md_hash,
-            'page_slug': page_slug,
+            'page_slug': self.generate_page_slug(url),
             'filename': filename,
             'crawled_at': datetime.now().isoformat(),
             'method': result.get('method', 'unknown'),
@@ -396,6 +558,17 @@ class HybridWebCrawler:
             'markdown_file': str(markdown_file.relative_to(self.output_dir))
         }
         
+        # Add unique ID if available
+        unique_id = self.url_to_unique_id.get(url)
+        if unique_id:
+            metadata['unique_id'] = unique_id
+        
+        # Add CSV data if available
+        csv_row_data = self.csv_data.get(url)
+        if csv_row_data:
+            metadata['csv_data'] = csv_row_data
+            
+        # Save metadata
         metadata_file = self.results_dir / f"{filename}_metadata.json"
         with open(metadata_file, 'w') as f:
             json.dump(metadata, f, indent=2)
@@ -413,16 +586,57 @@ class HybridWebCrawler:
             
             # Step 2: Check for geo-blocking
             if self.is_geo_blocked(local_result['markdown']):
-                logger.info(f"Geo-blocking detected, trying Lambda fallback: {url}")
-                self.stats['lambda_fallback'] += 1
+                logger.info(f"Geo-blocking detected for: {url}")
                 
-                # Try Lambda fallback
-                try:
-                    lambda_result = self.crawl_lambda_fallback(url)
-                    result = lambda_result
-                except Exception as lambda_error:
-                    logger.warning(f"Lambda fallback failed: {lambda_error}")
-                    result = local_result  # Use local result despite geo-blocking
+                # Check if Lambda is disabled
+                if self.config.get('disable_lambda', False):
+                    logger.info(f"Lambda disabled, skipping URL: {url}")
+                    self.stats['geo_blocked_skipped'] += 1
+                    
+                    # Add to error URLs list
+                    self.error_urls.append({
+                        'url': url,
+                        'reason': 'geo_blocked_lambda_disabled',
+                        'timestamp': datetime.now().isoformat(),
+                        'content_preview': local_result['markdown'][:200] + '...' if len(local_result['markdown']) > 200 else local_result['markdown']
+                    })
+                    
+                    # Write to error file immediately
+                    self.write_error_urls()
+                    
+                    return {
+                        'url': url,
+                        'status': 'skipped',
+                        'reason': 'geo_blocked_lambda_disabled',
+                        'method': 'local_geo_blocked',
+                        'processing_time': time.time() - start_time,
+                        'content_length': len(local_result['markdown']),
+                        'links_extracted': len(local_result.get('extracted_links', [])),
+                        'analysis_summary': 'Skipped due to geo-blocking (Lambda disabled)'
+                    }
+                else:
+                    # Try Lambda fallback
+                    logger.info(f"Trying Lambda fallback: {url}")
+                    self.stats['lambda_fallback'] += 1
+                    
+                    try:
+                        lambda_result = self.crawl_lambda_fallback(url)
+                        result = lambda_result
+                    except Exception as lambda_error:
+                        logger.warning(f"Lambda fallback failed: {lambda_error}")
+                        
+                        # Add to error URLs list
+                        self.error_urls.append({
+                            'url': url,
+                            'reason': 'lambda_fallback_failed',
+                            'error': str(lambda_error),
+                            'timestamp': datetime.now().isoformat()
+                        })
+                        self.write_error_urls()
+                        
+                        # Use local result despite geo-blocking
+                        result = local_result
+                        result['method'] = 'local_geo_blocked_lambda_failed'
             else:
                 logger.info(f"Local crawl successful: {url}")
                 self.stats['local_success'] += 1
@@ -454,12 +668,45 @@ class HybridWebCrawler:
             logger.error(f"Failed to process {url}: {e}")
             self.stats['failures'] += 1
             
+            # Add to error URLs list
+            self.error_urls.append({
+                'url': url,
+                'reason': 'processing_failed',
+                'error': str(e),
+                'timestamp': datetime.now().isoformat()
+            })
+            self.write_error_urls()
+            
             return {
                 'url': url,
                 'status': 'failed',
                 'error': str(e),
                 'processing_time': time.time() - start_time
             }
+            
+            
+    def write_error_urls(self):
+        """Write error URLs to file"""
+        try:
+            with open(self.error_urls_file, 'w', encoding='utf-8') as f:
+                f.write("# Error URLs - Failed or Skipped During Crawling\n")
+                f.write(f"# Generated: {datetime.now().isoformat()}\n")
+                f.write(f"# Total errors: {len(self.error_urls)}\n\n")
+                
+                for error_entry in self.error_urls:
+                    f.write(f"# URL: {error_entry['url']}\n")
+                    f.write(f"# Reason: {error_entry['reason']}\n")
+                    f.write(f"# Timestamp: {error_entry['timestamp']}\n")
+                    if 'error' in error_entry:
+                        f.write(f"# Error: {error_entry['error']}\n")
+                    if 'content_preview' in error_entry:
+                        f.write(f"# Content Preview: {error_entry['content_preview']}\n")
+                    f.write(f"{error_entry['url']}\n\n")
+                    
+            logger.info(f"Updated error URLs file: {self.error_urls_file} ({len(self.error_urls)} errors)")
+            
+        except Exception as e:
+            logger.error(f"Failed to write error URLs file: {e}")
             
     async def crawl_urls(self, urls: List[str]) -> Dict:
         """Crawl multiple URLs with threading"""
@@ -507,8 +754,11 @@ class HybridWebCrawler:
                 'total_urls': self.stats['total_urls'],
                 'local_success': self.stats['local_success'],
                 'lambda_fallback': self.stats['lambda_fallback'],
+                'geo_blocked_skipped': self.stats['geo_blocked_skipped'],
                 'failures': self.stats['failures'],
-                'success_rate': ((self.stats['local_success'] + self.stats['lambda_fallback']) / self.stats['total_urls'] * 100) if self.stats['total_urls'] > 0 else 0
+                'success_rate': ((self.stats['local_success'] + self.stats['lambda_fallback']) / self.stats['total_urls'] * 100) if self.stats['total_urls'] > 0 else 0,
+                'lambda_disabled': self.config.get('disable_lambda', False),
+                'error_urls_count': len(self.error_urls)
             },
             'results': results,
             'config': self.config
@@ -527,10 +777,25 @@ class HybridWebCrawler:
         print(f"Total URLs: {self.stats['total_urls']}")
         print(f"Local Success: {self.stats['local_success']}")
         print(f"Lambda Fallback: {self.stats['lambda_fallback']}")
+        if self.config.get('disable_lambda', False):
+            print(f"Geo-blocked Skipped: {self.stats['geo_blocked_skipped']} (Lambda disabled)")
         print(f"Failures: {self.stats['failures']}")
         print(f"Success Rate: {summary['crawl_session']['success_rate']:.1f}%")
         print(f"Duration: {duration:.1f} seconds")
         print(f"Results saved to: {self.output_dir}")
+        
+        # Show error URLs info
+        if self.error_urls:
+            print(f"\n⚠️  Error URLs: {len(self.error_urls)}")
+            print(f"   Error file: {self.error_urls_file}")
+            print(f"   Reasons:")
+            error_reasons = {}
+            for error in self.error_urls:
+                reason = error['reason']
+                error_reasons[reason] = error_reasons.get(reason, 0) + 1
+            for reason, count in error_reasons.items():
+                print(f"     - {reason}: {count}")
+        
         print(f"{'='*50}\n")
         
         # Show sample filenames generated
@@ -547,6 +812,7 @@ class HybridWebCrawler:
 def main():
     parser = argparse.ArgumentParser(description='Hybrid Web Crawler - Local with Lambda Fallback')
     parser.add_argument('--urls', type=str, help='File containing URLs to crawl')
+    parser.add_argument('--csv-import', type=str, help='CSV file with site column and optional lat/long for unique ID generation')
     parser.add_argument('--url-list', nargs='*', help='Direct URL list')
     parser.add_argument('--workers', type=int, default=5, help='Number of worker threads')
     parser.add_argument('--output-dir', type=str, default='crawl_output', help='Output directory')
@@ -554,16 +820,31 @@ def main():
     parser.add_argument('--lambda-function', type=str, default='web-crawler-analyzer', help='Lambda function name')
     parser.add_argument('--no-analysis', action='store_true', help='Disable content analysis')
     parser.add_argument('--no-links', action='store_true', help='Disable link extraction')
+    parser.add_argument('--disable-lambda', action='store_true', help='Disable Lambda fallback (write geo-blocked URLs to error file)')
     
     args = parser.parse_args()
     
     # Load URLs
     urls = []
-    if args.urls:
+    if args.csv_import:
+        # Load from CSV file
+        crawler_temp = HybridWebCrawler({'output_dir': 'temp'})  # Temp instance for CSV loading
+        urls = crawler_temp.load_csv_data(args.csv_import)
+        print(f"Loaded {len(urls)} URLs from CSV: {args.csv_import}")
+        
+        # Transfer CSV data to main crawler (will be created later)
+        csv_data = crawler_temp.csv_data
+        url_to_unique_id = crawler_temp.url_to_unique_id
+        
+    elif args.urls:
         with open(args.urls, 'r') as f:
             urls = [line.strip() for line in f if line.strip()]
+        csv_data = {}
+        url_to_unique_id = {}
     elif args.url_list:
         urls = args.url_list
+        csv_data = {}
+        url_to_unique_id = {}
     else:
         # Default test URLs
         urls = [
@@ -571,6 +852,8 @@ def main():
             'https://httpbin.org/html',
             'https://docs.python.org/3/'
         ]
+        csv_data = {}
+        url_to_unique_id = {}
         print("No URLs provided, using default test URLs")
         
     # Configuration
@@ -582,15 +865,25 @@ def main():
         'aws_region': os.environ.get('AWS_DEFAULT_REGION', 'us-east-1'),
         'analyze_content': not args.no_analysis,
         'extract_links': not args.no_links,
+        'disable_lambda': args.disable_lambda,
         'timeout': 300
     }
     
-    # Check environment
-    if not os.environ.get('DEEPSEEK_API_KEY') and config['analyze_content']:
+    # Check environment and show warnings
+    if args.disable_lambda:
+        print("⚠️  Lambda fallback is DISABLED")
+        print("   Geo-blocked URLs will be written to error_urls.txt")
+    elif not os.environ.get('DEEPSEEK_API_KEY') and config['analyze_content']:
         print("Warning: DEEPSEEK_API_KEY not set, analysis will be skipped")
         
     # Run crawler
     crawler = HybridWebCrawler(config)
+    
+    # Transfer CSV data if loaded from CSV
+    if args.csv_import:
+        crawler.csv_data = csv_data
+        crawler.url_to_unique_id = url_to_unique_id
+        logger.info(f"Transferred CSV data for {len(csv_data)} URLs with unique IDs")
     
     try:
         results = asyncio.run(crawler.crawl_urls(urls))

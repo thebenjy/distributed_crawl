@@ -100,3 +100,32 @@
 2025-06-19 09:57:00,240 - WARNING - Lambda fallback failed: An error occurred (ResourceNotFoundException) when calling the Invoke operation: Function not found: arn:aws:lambda:us-east-1:637423269557:function:web-crawler-analyzer
 2025-06-19 09:57:00,240 - INFO - Analyzing content for: http://localhost:8002/premium
 2025-06-19 09:57:00,242 - INFO - Summary saved to: crawl_output/results/crawl_summary_1750291020.json
+2025-06-19 15:43:07,331 - INFO - Found credentials in environment variables.
+2025-06-19 15:43:09,174 - INFO - AWS clients initialized
+2025-06-19 15:43:09,175 - WARNING - No S3 bucket configured
+2025-06-19 15:43:09,178 - INFO - CSV columns detected:
+2025-06-19 15:43:09,178 - INFO -   Site: site
+2025-06-19 15:43:09,179 - INFO -   Latitude: latitude
+2025-06-19 15:43:09,179 - INFO -   Longitude: longitude
+2025-06-19 15:43:09,179 - INFO -   Unique ID: None
+2025-06-19 15:43:09,260 - INFO - Generated unique ID for https://www.wm.com/us/en/location/az/phoenix/trash-pickup-phoenix-az?utm_source=gmb: 3b1369df95f4
+2025-06-19 15:43:09,260 - INFO - Generated unique ID for https://www.republicservices.com/customer-support/facilities?utm_medium=yext: 49feec214acd
+2025-06-19 15:43:09,261 - INFO - Generated unique ID for https://www.phxjunkbusters.com/: e4044f47eb56
+2025-06-19 15:43:09,261 - INFO - Loaded 3 URLs from CSV file: test_dump_list.csv
+2025-06-19 15:45:18,123 - INFO - Found credentials in environment variables.
+2025-06-19 15:45:19,900 - INFO - AWS clients initialized
+2025-06-19 15:45:19,901 - WARNING - No S3 bucket configured
+2025-06-19 15:45:19,926 - INFO - CSV columns detected:
+2025-06-19 15:45:19,927 - INFO -   Site: site
+2025-06-19 15:45:19,927 - INFO -   Latitude: latitude
+2025-06-19 15:45:19,927 - INFO -   Longitude: longitude
+2025-06-19 15:45:19,927 - INFO -   Unique ID: None
+2025-06-19 15:45:19,928 - INFO - Generated unique ID for https://www.wm.com/us/en/location/az/phoenix/trash-pickup-phoenix-az?utm_source=gmb: 3b1369df95f4
+2025-06-19 15:45:19,928 - INFO - Loaded 1 URLs from CSV file: test_dump_list.csv
+2025-06-19 15:45:20,058 - INFO - AWS clients initialized
+2025-06-19 15:45:20,869 - INFO - S3 bucket 'web-crawler-results-hybrid' already exists
+2025-06-19 15:45:20,870 - INFO - Transferred CSV data for 1 URLs with unique IDs
+2025-06-19 15:45:20,873 - INFO - Starting crawl of 1 URLs with 1 workers
+2025-06-19 15:45:20,874 - INFO - Attempting local crawl: https://www.wm.com/us/en/location/az/phoenix/trash-pickup-phoenix-az?utm_source=gmb
+2025-06-19 15:46:28,075 - INFO - Local crawl successful: https://www.wm.com/us/en/location/az/phoenix/trash-pickup-phoenix-az?utm_source=gmb
+2025-06-19 15:46:28,082 - INFO - Summary saved to: opdir/results/crawl_summary_1750311988.json
