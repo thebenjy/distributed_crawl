@@ -2,6 +2,7 @@
 """
 Hybrid Web Crawler - Local with Lambda Fallback
 Performs multi-threaded local crawling with automatic Lambda fallback for geo-blocked content
+Enhanced with descriptive filename generation including domain and page slugs
 """
 
 import os
@@ -17,6 +18,7 @@ from typing import Dict, List, Optional, Set
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urlparse
 import argparse
+import re
 
 import boto3
 import requests
@@ -132,9 +134,46 @@ class HybridWebCrawler:
             else:
                 logger.error(f"Error checking S3 bucket: {e}")
                 
+    def generate_page_slug(self, url: str) -> str:
+        """Generate a readable page slug from URL"""
+        parsed = urlparse(url)
+        domain = parsed.netloc.replace('www.', '')
+        path = parsed.path.strip('/')
+        
+        # Clean domain (remove special chars, keep only alphanumeric and dots)
+        domain = re.sub(r'[^a-zA-Z0-9.-]', '', domain)
+        domain = domain.replace('.', '_')
+        
+        # Process path
+        if not path:
+            page_name = 'index'
+        else:
+            # Remove file extensions and clean
+            page_name = path.split('/')[-1]  # Get last part of path
+            page_name = re.sub(r'\.[^.]*$', '', page_name)  # Remove extension
+            if not page_name:
+                page_name = path.replace('/', '_').strip('_')
+            
+        # Clean page name (alphanumeric, hyphens, underscores only)
+        page_name = re.sub(r'[^a-zA-Z0-9-_]', '_', page_name)
+        page_name = re.sub(r'_+', '_', page_name)  # Multiple underscores to single
+        page_name = page_name.strip('_')
+        
+        if not page_name:
+            page_name = 'page'
+            
+        # Combine domain and page name
+        slug = f"{domain}_{page_name}"
+        
+        # Limit length and ensure it's valid
+        slug = slug[:50]  # Reasonable filename length
+        slug = slug.strip('_')
+        
+        return slug
+        
     def generate_content_hash(self, content: str) -> str:
         """Generate SHA-256 hash of content"""
-        return hashlib.sha256(content.encode('utf-8')).hexdigest()
+        return hashlib.sha256(content.encode('utf-8')).hexdigest()[:16]  # Use first 16 chars for shorter names
         
     def is_geo_blocked(self, content: str) -> bool:
         """Check if content indicates geo-blocking"""
@@ -329,19 +368,25 @@ class HybridWebCrawler:
             return {'error': str(e)}
             
     def save_local_result(self, url: str, result: Dict) -> str:
-        """Save crawling result locally"""
-        # Generate hash
+        """Save crawling result locally with descriptive filenames"""
+        # Generate hash and page slug
         md_hash = self.generate_content_hash(result['markdown'])
+        page_slug = self.generate_page_slug(url)
+        
+        # Create filename: hash_pageslug.md
+        filename = f"{md_hash}_{page_slug}"
+        markdown_file = self.markdown_dir / f"{filename}.md"
         
         # Save markdown file
-        markdown_file = self.markdown_dir / f"{md_hash}.md"
         with open(markdown_file, 'w', encoding='utf-8') as f:
             f.write(result['markdown'])
             
-        # Save metadata
+        # Save metadata with descriptive filename
         metadata = {
             'url': url,
             'md_hash': md_hash,
+            'page_slug': page_slug,
+            'filename': filename,
             'crawled_at': datetime.now().isoformat(),
             'method': result.get('method', 'unknown'),
             'content_length': len(result['markdown']),
@@ -351,7 +396,7 @@ class HybridWebCrawler:
             'markdown_file': str(markdown_file.relative_to(self.output_dir))
         }
         
-        metadata_file = self.results_dir / f"{md_hash}_metadata.json"
+        metadata_file = self.results_dir / f"{filename}_metadata.json"
         with open(metadata_file, 'w') as f:
             json.dump(metadata, f, indent=2)
             
@@ -487,6 +532,16 @@ class HybridWebCrawler:
         print(f"Duration: {duration:.1f} seconds")
         print(f"Results saved to: {self.output_dir}")
         print(f"{'='*50}\n")
+        
+        # Show sample filenames generated
+        markdown_files = list(self.markdown_dir.glob("*.md"))
+        if markdown_files:
+            print("📁 Sample generated filenames:")
+            for i, file in enumerate(markdown_files[:5]):  # Show first 5 files
+                print(f"   {file.name}")
+            if len(markdown_files) > 5:
+                print(f"   ... and {len(markdown_files) - 5} more files")
+            print()
 
 
 def main():

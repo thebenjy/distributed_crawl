@@ -344,6 +344,147 @@ class LocalOrchestrator:
         print(f"Results saved to: {self.crawl_results_file}")
         print(f"{'='*50}\n")
         
+    def generate_page_slug(self, url: str) -> str:
+        """Generate a readable page slug from URL"""
+        import re
+        from urllib.parse import urlparse
+        
+        parsed = urlparse(url)
+        domain = parsed.netloc.replace('www.', '')
+        path = parsed.path.strip('/')
+        
+        # Clean domain (remove special chars, keep only alphanumeric and dots)
+        domain = re.sub(r'[^a-zA-Z0-9.-]', '', domain)
+        domain = domain.replace('.', '_')
+        
+        # Process path
+        if not path:
+            page_name = 'index'
+        else:
+            # Remove file extensions and clean
+            page_name = path.split('/')[-1]  # Get last part of path
+            page_name = re.sub(r'\.[^.]*
+        """Download all markdown files from S3 to local structure"""
+        self.logger.info("Downloading markdown files from S3...")
+        
+        downloaded_count = 0
+        
+        for url, status in self.crawl_status.items():
+            if status.status == "completed" and status.s3_key:
+                try:
+                    # Generate page slug and filename
+                    page_slug = self.generate_page_slug(url)
+                    filename = f"{status.md_hash}_{page_slug}.md"
+                    
+                    # Create local path structure
+                    parsed_url = urlparse(url)
+                    domain_dir = self.local_markdown_dir / parsed_url.netloc
+                    domain_dir.mkdir(exist_ok=True)
+                    
+                    # Set local file path with descriptive name
+                    local_path = domain_dir / filename
+                    
+                    # Download from S3
+                    self.s3_client.download_file(
+                        self.config.s3_bucket,
+                        status.s3_key,
+                        str(local_path)
+                    )
+                    
+                    # Create metadata file with matching name
+                    metadata = {
+                        'url': url,
+                        'md_hash': status.md_hash,
+                        'page_slug': page_slug,
+                        'filename': f"{status.md_hash}_{page_slug}",
+                        'last_modified': status.last_modified,
+                        's3_key': status.s3_key,
+                        'downloaded_at': datetime.now().isoformat()
+                    }
+                    
+                    metadata_filename = f"{status.md_hash}_{page_slug}_metadata.json"
+                    metadata_path = domain_dir / metadata_filename
+                    with open(metadata_path, 'w') as f:
+                        json.dump(metadata, f, indent=2)
+                        
+                    downloaded_count += 1
+                    
+                except Exception as e:
+                    self.logger.error(f"Failed to download {url}: {e}")
+                    
+        self.logger.info(f"Downloaded {downloaded_count} markdown files to {self.local_markdown_dir}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Local Web Crawler Orchestrator')
+    parser.add_argument('--config', type=str, help='Configuration file path')
+    parser.add_argument('--urls', type=str, help='File containing URLs to crawl')
+    parser.add_argument('--url-list', nargs='*', help='Direct URL list')
+    parser.add_argument('--max-levels', type=int, default=1, help='Maximum crawl levels')
+    parser.add_argument('--max-concurrency', type=int, default=5, help='Maximum concurrent crawls')
+    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    parser.add_argument('--debug-max-sublinks', type=int, default=5, help='Max sublinks in debug mode')
+    parser.add_argument('--debug-max-urls', type=int, default=10, help='Max URLs in debug mode')
+    parser.add_argument('--download-only', action='store_true', help='Only download existing results')
+    
+    args = parser.parse_args()
+    
+    # Load configuration
+    config = CrawlConfig(
+        max_levels=args.max_levels,
+        max_concurrency=args.max_concurrency,
+        debug_mode=args.debug,
+        debug_max_sublinks=args.debug_max_sublinks,
+        debug_max_urls=args.debug_max_urls
+    )
+    
+    # Load URLs
+    urls = []
+    if args.urls:
+        with open(args.urls, 'r') as f:
+            urls = [line.strip() for line in f if line.strip()]
+    elif args.url_list:
+        urls = args.url_list
+    else:
+        print("Please provide URLs via --urls file or --url-list")
+        return
+        
+    # Initialize orchestrator
+    orchestrator = LocalOrchestrator(config)
+    orchestrator.load_state()
+    
+    if args.download_only:
+        orchestrator.download_markdown_files()
+    else:
+        # Run crawler
+        orchestrator.run_crawler(urls)
+        
+        # Download results
+        orchestrator.download_markdown_files()
+
+
+if __name__ == "__main__":
+    main(), '', page_name)  # Remove extension
+            if not page_name:
+                page_name = path.replace('/', '_').strip('_')
+            
+        # Clean page name (alphanumeric, hyphens, underscores only)
+        page_name = re.sub(r'[^a-zA-Z0-9-_]', '_', page_name)
+        page_name = re.sub(r'_+', '_', page_name)  # Multiple underscores to single
+        page_name = page_name.strip('_')
+        
+        if not page_name:
+            page_name = 'page'
+            
+        # Combine domain and page name
+        slug = f"{domain}_{page_name}"
+        
+        # Limit length and ensure it's valid
+        slug = slug[:50]  # Reasonable filename length
+        slug = slug.strip('_')
+        
+        return slug
+        
     def download_markdown_files(self):
         """Download all markdown files from S3 to local structure"""
         self.logger.info("Downloading markdown files from S3...")

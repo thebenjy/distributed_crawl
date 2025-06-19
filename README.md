@@ -553,4 +553,175 @@ s3://bucket/
 ```json
 {
   "url": "https://docs.python.org/3/",
-  "md_hash": "a1b2c3d4e5f6g7h8
+  "md_hash": "a1b2c3d4e5f6g7h8",
+  "page_slug": "docs_python_org_index",
+  "filename": "a1b2c3d4e5f6g7h8_docs_python_org_index",
+  "crawled_at": "2025-06-08T14:30:00.123456",
+  "method": "crawl4ai_local",
+  "content_length": 12543,
+  "extracted_links": [
+    "https://docs.python.org/3/library/",
+    "https://docs.python.org/3/tutorial/"
+  ],
+  "analysis": {
+    "main_topic": "Python 3 Documentation",
+    "content_type": "documentation",
+    "summary": "Official Python 3 documentation homepage",
+    "relevance_score": 9,
+    "key_points": [
+      "Python programming language documentation",
+      "Tutorial and library reference",
+      "Installation and setup guides"
+    ],
+    "language": "en",
+    "technical_level": "intermediate"
+  },
+  "s3_key": "markdown/docs_python_org_index/a1b2c3d4e5f6g7h8_docs_python_org_index_20250608_143000.md",
+  "markdown_file": "markdown/a1b2c3d4e5f6g7h8_docs_python_org_index.md"
+}
+```
+
+## 🔍 **Benefits of New Naming**
+
+### **1. Human Readable**
+- ✅ **Before**: `a1b2c3d4e5f6g7h8f9g0h1i2j3k4l5m6.md`
+- ✅ **After**: `a1b2c3d4e5f6g7h8_docs_python_org_index.md`
+
+### **2. Easy File Management**
+```bash
+# Find all Python documentation files
+ls *_docs_python_org_*.md
+
+# Find all index/homepage files
+ls *_index.md
+
+# Find all GitHub repository files
+ls *_github_com_*.md
+
+# Find files from specific domain
+ls *_example_com_*.md
+```
+
+### **3. Organized Directory Listings**
+```bash
+$ ls crawl_output/markdown/
+a1b2c3d4e5f6g7h8_docs_python_org_index.md
+b2c3d4e5f6g7h8i9_docs_python_org_tutorial.md
+c3d4e5f6g7h8i9j0_github_com_project.md
+d4e5f6g7h8i9j0k1_aws_amazon_com_lambda.md
+e5f6g7h8i9j0k1l2_example_com_about.md
+```
+
+### **4. Better Search and Filtering**
+```bash
+# Find all about pages
+find . -name "*_about.md"
+
+# Find all documentation sites
+find . -name "*_docs_*"
+
+# Find all localhost test files
+find . -name "*_localhost_*"
+```
+
+## 🛠️ **Implementation Details**
+
+### **Code Changes Made:**
+
+1. **Hybrid Crawler** (`hybrid_crawler.py`)
+   - Added `generate_page_slug()` method
+   - Updated `save_local_result()` to use descriptive filenames
+   - Shortened hash to 16 characters for better readability
+
+2. **Lambda Function** (`lambda_function.py`)
+   - Added `generate_page_slug()` method
+   - Updated S3 key generation with page slugs
+   - Enhanced S3 metadata with slug information
+
+3. **Local Orchestrator** (`local_orchestrator.py`)
+   - Updated download function to use descriptive names
+   - Enhanced metadata with slug information
+
+4. **Utils Module** (`utils.py`)
+   - Added `URLSlugGenerator` class
+   - Enhanced `S3Manager` with slug-aware uploads
+   - Added helper functions for filename generation
+
+### **Backward Compatibility:**
+- ✅ Old hash-only files still work
+- ✅ Metadata includes both old and new filename formats
+- ✅ S3 keys maintain domain organization
+- ✅ All existing functionality preserved
+
+## 📊 **File Organization Examples**
+
+### **Large Crawl Results:**
+```
+crawl_output/markdown/
+├── 1a2b3c4d5e6f7g8h_docs_python_org_index.md
+├── 2b3c4d5e6f7g8h9i_docs_python_org_tutorial.md
+├── 3c4d5e6f7g8h9i0j_docs_python_org_library.md
+├── 4d5e6f7g8h9i0j1k_github_com_repo1.md
+├── 5e6f7g8h9i0j1k2l_github_com_repo2.md
+├── 6f7g8h9i0j1k2l3m_aws_amazon_com_lambda.md
+├── 7g8h9i0j1k2l3m4n_aws_amazon_com_s3.md
+├── 8h9i0j1k2l3m4n5o_stackoverflow_com_question.md
+└── 9i0j1k2l3m4n5o6p_reddit_com_programming.md
+```
+
+### **Test Results:**
+```
+test_output/markdown/
+├── abc123456789def0_localhost_8001_index.md
+├── def123456789abc0_localhost_8001_about.md
+├── ghi123456789def0_localhost_8001_services.md
+├── jkl123456789ghi0_localhost_8001_contact.md
+├── mno123456789jkl0_localhost_8002_index.md
+├── pqr123456789mno0_localhost_8002_about.md
+└── stu123456789pqr0_localhost_8002_premium.md
+```
+
+## 🎯 **Usage Examples**
+
+### **Finding Specific Content:**
+```bash
+# Find all Python docs
+ls *_docs_python_org_*.md
+
+# Find all AWS pages
+ls *_aws_amazon_com_*.md
+
+# Find all index/home pages
+ls *_index.md
+
+# Find all test server results
+ls *_localhost_*.md
+```
+
+### **Organizing by Domain:**
+```bash
+# Group files by domain
+for file in *.md; do
+    domain=$(echo $file | cut -d'_' -f2-4)
+    mkdir -p "by_domain/$domain"
+    cp "$file" "by_domain/$domain/"
+done
+```
+
+### **Content Analysis:**
+```bash
+# Count pages per domain
+ls *.md | cut -d'_' -f2-4 | sort | uniq -c
+
+# Find largest files
+ls -la *.md | sort -k5 -nr | head -10
+
+# Search content across all files
+grep -l "specific keyword" *.md
+```
+
+This enhanced naming system makes the crawler output much more manageable and user-friendly while maintaining all the technical benefits of content hashing for deduplication and integrity checking.
+
+---
+
+**🎉 Now your crawled files have meaningful, searchable names that tell you exactly what they contain!**

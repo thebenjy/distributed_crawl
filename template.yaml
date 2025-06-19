@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'Web Crawler Lambda function for local development with SAM'
+
+Parameters:
+  DeepSeekApiKey:
+    Type: String
+    Description: DeepSeek API key for content analysis
+    Default: 'your-deepseek-api-key'
+    NoEcho: true
+
+Globals:
+  Function:
+    Timeout: 900  # 15 minutes
+    MemorySize: 2048
+    Runtime: python3.9
+    Environment:
+      Variables:
+        DEEPSEEK_API_KEY: !Ref DeepSeekApiKey
+
+Resources:
+  WebCrawlerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: web-crawler-analyzer
+      CodeUri: ./
+      Handler: lambda_function.lambda_handler
+      Description: 'Web crawler and analyzer using Crawl4AI and DeepSeek'
+      Environment:
+        Variables:
+          PYTHONPATH: '/var/task:/opt/python'
+      Events:
+        # For local testing - SAM will create local API endpoints
+        CrawlApi:
+          Type: Api
+          Properties:
+            Path: /crawl
+            Method: post
+            RestApiId: !Ref CrawlerApi
+      Policies:
+        - S3FullAccessPolicy:
+            BucketName: !Ref S3Bucket
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: 'arn:aws:logs:*:*:*'
+
+  # API Gateway for local testing
+  CrawlerApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: local
+      Cors:
+        AllowMethods: "'POST, GET, OPTIONS'"
+        AllowHeaders: "'Content-Type'"
+        AllowOrigin: "'*'"
+
+  # S3 bucket for local testing
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'web-crawler-results-local-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+Outputs:
+  WebCrawlerFunction:
+    Description: 'Web Crawler Lambda Function ARN'
+    Value: !GetAtt WebCrawlerFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-WebCrawlerFunction'
+
+  WebCrawlerApi:
+    Description: 'API Gateway endpoint URL for local testing'
+    Value: !Sub 'https://${CrawlerApi}.execute-api.${AWS::Region}.amazonaws.com/local/crawl'
+    Export:
+      Name: !Sub '${AWS::StackName}-WebCrawlerApi'
+
+  S3BucketName:
+    Description: 'S3 bucket name for crawler results'
+    Value: !Ref S3Bucket
+    Export:
+      Name: !Sub '${AWS::StackName}-S3Bucket'
